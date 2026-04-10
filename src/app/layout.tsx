@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "NYE tradition — Secret friend, enemy & cooking",
   description:
-    "NYE tradition: join an event, then get your private assignments for the group chat.",
+    "Welcome to the NYE Group: three games each year — secret friend, secret enemy, and NYE cooking partner.",
 };
 
 export default function RootLayout({

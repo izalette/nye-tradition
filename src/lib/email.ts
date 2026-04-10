@@ -63,11 +63,10 @@ export async function sendJoinConfirmationEmail(options: {
     to: options.to,
     subject: `You joined: ${options.eventTitle}`,
     html: `
-      <p>Hi,</p>
-      <p>You signed up for <strong>${title}</strong>.</p>
-      <p>Your private assignments page (bookmark this):</p>
+      <p>You’re in <strong>${title}</strong>.</p>
+      <p>Your private page:</p>
       <p><a href="${link}">${escapeHtml(link)}</a></p>
-      <p>Do not share this link — it is only for you.</p>
+      <p>Don’t share — yours only.</p>
     `,
   });
 }
@@ -88,9 +87,8 @@ export async function sendDrawReadyEmail(options: {
     to: options.to,
     subject: `Assignments are ready: ${options.eventTitle}`,
     html: `
-      <p>Hi,</p>
-      <p>The draw for <strong>${title}</strong> has been run.</p>
-      <p>Open your private page to see secret friend, secret enemy, and cooking partner:</p>
+      <p>Draw’s done for <strong>${title}</strong>.</p>
+      <p>Assignments:</p>
       <p><a href="${link}">${escapeHtml(link)}</a></p>
     `,
   });

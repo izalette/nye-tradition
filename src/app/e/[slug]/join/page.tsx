@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { firstRow } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
@@ -11,12 +12,29 @@ export default async function JoinPage({ params }: Props) {
   const { slug } = await params;
   const db = await getDb();
   const evRes = await db.execute({
-    sql: `SELECT title, draw_closed FROM events WHERE slug = ?`,
+    sql: `SELECT id, title, draw_closed, pop_quiz_enabled FROM events WHERE slug = ?`,
     args: [slug],
   });
-  const ev = firstRow<{ title: string; draw_closed: number }>(evRes.rows);
+  const ev = firstRow<{
+    id: string;
+    title: string;
+    draw_closed: number;
+    pop_quiz_enabled: number;
+  }>(evRes.rows);
 
   if (!ev) notFound();
+
+  const cookieStore = await cookies();
+  const regToken = cookieStore.get(`nye_evt_${slug}`)?.value;
+  if (regToken && !ev.draw_closed) {
+    const ok = await db.execute({
+      sql: `SELECT 1 FROM participants WHERE event_id = ? AND secret_token = ?`,
+      args: [ev.id, regToken],
+    });
+    if (ok.rows.length > 0) {
+      redirect(`/e/${slug}/me/${regToken}`);
+    }
+  }
 
   const baseUrl = getPublicBaseUrl();
 
@@ -24,11 +42,13 @@ export default async function JoinPage({ params }: Props) {
     <>
       <h1>{ev.title}</h1>
       {ev.draw_closed ? (
-        <p>Sign-up is closed. Use the link you saved to open your assignments.</p>
+        <p className="muted">Sign-up closed — open your saved private link for assignments.</p>
       ) : (
         <>
-          <p>Join once. You will get a private link — keep it secret.</p>
-          <JoinForm slug={slug} baseUrl={baseUrl} />
+          <p className="muted" style={{ marginBottom: "1rem", lineHeight: 1.5 }}>
+            One sign-up per person. You&apos;ll get a private link — save it.
+          </p>
+          <JoinForm slug={slug} baseUrl={baseUrl} popQuizEnabled={ev.pop_quiz_enabled !== 0} />
         </>
       )}
       <p style={{ marginTop: "1.5rem" }}>
