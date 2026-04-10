@@ -15,14 +15,30 @@ export async function getDb(): Promise<Client> {
   const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
   const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
-  const filePath = path.resolve(getLocalDbFilePath());
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  if (process.env.VERCEL === "1" && !tursoUrl) {
+    throw new Error(
+      "Missing TURSO_DATABASE_URL. In Vercel: Project → Settings → Environment Variables → add Turso URL and token, then Redeploy.",
+    );
+  }
 
-  const url = tursoUrl ? tursoUrl : `file:${filePath}`;
+  if (tursoUrl && !authToken) {
+    throw new Error(
+      "Missing TURSO_AUTH_TOKEN. In Vercel: Project → Settings → Environment Variables → add the Turso DB token, then Redeploy.",
+    );
+  }
+
+  let url: string;
+  if (tursoUrl) {
+    url = tursoUrl;
+  } else {
+    const filePath = path.resolve(getLocalDbFilePath());
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    url = `file:${filePath}`;
+  }
 
   const client = createClient({
     url,
-    authToken: authToken || undefined,
+    authToken: tursoUrl ? authToken : undefined,
   });
 
   await migrate(client);
