@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
-
-/** Avoid DB at build time (Vercel has no local SQLite; Turso may be unset during build). */
-export const dynamic = "force-dynamic";
 import { allRows } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
 import { AdminCreateEventModal } from "./admin-create-event-modal";
 import { AdminEventsTable, type AdminEventRow } from "./admin-events-table";
+
+/** Avoid DB at build time (Vercel has no local SQLite; Turso may be unset during build). */
+export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const baseUrl = getPublicBaseUrl();
