@@ -1,4 +1,6 @@
-# NYE group games (WhatsApp helper)
+# NYE tradition (WhatsApp group games)
+
+**GitHub repository name:** `nye-tradition` (clone URL: `https://github.com/YOUR_USER/nye-tradition.git`).
 
 **Folder on this Mac (bookmark in Finder or search Spotlight for `nye-group-games`):**
 
