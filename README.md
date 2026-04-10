@@ -1,11 +1,13 @@
-# NYE tradition (WhatsApp group games)
+# NYE tradition
 
-**GitHub repository name:** `nye-tradition` (clone URL: `https://github.com/YOUR_USER/nye-tradition.git`).
+WhatsApp-friendly draws: secret friend, secret enemy, and NYE cooking partner.
 
-**Folder on this Mac (bookmark in Finder or search Spotlight for `nye-group-games`):**
+**GitHub:** `https://github.com/YOUR_USER/nye-tradition.git`
+
+**Folder on this Mac** (bookmark in Finder or Spotlight: `nye-tradition`):
 
 ```
-/Users/swoon/Documents/Cursor/nye-group-games
+/Users/swoon/Documents/Cursor/nye-tradition
 ```
 
 ## Resume later
@@ -14,7 +16,7 @@
 2. Run:
 
    ```bash
-   cd /Users/swoon/Documents/Cursor/nye-group-games
+   cd /Users/swoon/Documents/Cursor/nye-tradition
    npm install
    npm run dev
    ```
@@ -26,5 +28,4 @@ Optional: copy `.env.example` to `.env.local` if you use Turso or Resend (see co
 
 ## What it does
 
-Secret friend, secret enemy, and NYE cooking partner draws for a group — join via a link, organiser runs the draw, each person keeps a private link to their assignments.
-# nye-tradition
+Join via a link, organiser runs the draw, each person keeps a private link to their assignments. No self-assignment for friend, enemy, or cooking partner.

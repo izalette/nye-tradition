@@ -13,7 +13,7 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
     volumes:
-      - nye-sqlite:/app/data
+      - nye-tradition-data:/app/data
 
 volumes:
-  nye-sqlite:
+  nye-tradition-data:
