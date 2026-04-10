@@ -39,7 +39,7 @@ export function JoinForm({ slug, baseUrl, popQuizEnabled }: Props) {
             Fun fact / hobby
           </label>
           <p id="fun_fact_hint" className="muted" style={{ marginTop: "0.2rem", marginBottom: "0.35rem" }}>
-            One line others might guess is you (used for the quiz).
+            Share one thing you&apos;re proud of or passionate about (used for the quiz).
           </p>
           <textarea
             id="fun_fact"

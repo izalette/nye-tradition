@@ -355,6 +355,80 @@ export async function reopenSignUpAction(
 
 export type DeleteEventState = { ok: true } | { ok: false; error: string };
 
+export type DeleteParticipantState = { ok: true } | { ok: false; error: string };
+
+/** Remove one sign-up from an event; clears others’ assignments pointing at them. */
+export async function deleteParticipantAction(
+  _prev: DeleteParticipantState | null,
+  formData: FormData,
+): Promise<DeleteParticipantState> {
+  const slug = String(formData.get("slug") ?? "").trim();
+  const participantId = String(formData.get("participant_id") ?? "").trim();
+  if (!slug || !participantId) {
+    return { ok: false, error: "Missing event or participant." };
+  }
+
+  const db = await getDb();
+  const evRes = await db.execute({
+    sql: `SELECT id FROM events WHERE slug = ?`,
+    args: [slug],
+  });
+  const ev = firstRow<{ id: string }>(evRes.rows);
+  if (!ev) {
+    return { ok: false, error: "Event not found." };
+  }
+
+  const pRes = await db.execute({
+    sql: `SELECT id, display_name, secret_token FROM participants WHERE id = ? AND event_id = ?`,
+    args: [participantId, ev.id],
+  });
+  const victim = firstRow<{ id: string; display_name: string; secret_token: string }>(pRes.rows);
+  if (!victim) {
+    return { ok: false, error: "Participant not found for this event." };
+  }
+
+  try {
+    await db.batch(
+      [
+        {
+          sql: `UPDATE participants SET friend_target_id = NULL WHERE friend_target_id = ?`,
+          args: [participantId],
+        },
+        {
+          sql: `UPDATE participants SET enemy_target_id = NULL WHERE enemy_target_id = ?`,
+          args: [participantId],
+        },
+        {
+          sql: `UPDATE participants SET cooking_partner_id = NULL WHERE cooking_partner_id = ?`,
+          args: [participantId],
+        },
+        {
+          sql: `DELETE FROM participants WHERE id = ? AND event_id = ?`,
+          args: [participantId, ev.id],
+        },
+      ],
+      "write",
+    );
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/e/${slug}/join`);
+
+  const othersRes = await db.execute({
+    sql: `SELECT secret_token FROM participants WHERE event_id = ?`,
+    args: [ev.id],
+  });
+  for (const row of allRows<{ secret_token: string }>(othersRes.rows)) {
+    revalidatePath(`/e/${slug}/me/${row.secret_token}`);
+  }
+  revalidatePath(`/e/${slug}/me/${victim.secret_token}`);
+  revalidatePath(`/admin/events/${slug}/fun-facts`);
+
+  return { ok: true };
+}
+
 /** Permanently removes the event, all participants, and pop-quiz votes. */
 export async function deleteEventAction(
   _prev: DeleteEventState | null,

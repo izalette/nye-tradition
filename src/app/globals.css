@@ -669,6 +669,48 @@ button.pop-quiz-reveal:hover {
   color: var(--text);
 }
 
+.admin-participant-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+}
+
+.admin-participant-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(196, 181, 253, 0.12);
+}
+
+.admin-participant-list-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.admin-participant-remove {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 113, 133, 0.45);
+  background: rgba(251, 113, 133, 0.1);
+  color: #fecaca;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.admin-participant-remove:hover:not(:disabled) {
+  background: rgba(251, 113, 133, 0.2);
+}
+
+.admin-participant-remove:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .admin-events-num {
   text-align: right;
   font-variant-numeric: tabular-nums;

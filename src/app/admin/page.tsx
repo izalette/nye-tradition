@@ -31,27 +31,29 @@ export default async function AdminPage() {
     participant_count: Number(row.participant_count),
   }));
 
-  const namesBySlug = new Map<string, string[]>();
+  const membersBySlug = new Map<string, { id: string; display_name: string }[]>();
   if (eventRows.length > 0) {
     const partRes = await db.execute({
-      sql: `SELECT e.slug AS slug, p.display_name AS display_name
+      sql: `SELECT e.slug AS slug, p.id AS id, p.display_name AS display_name
        FROM participants p
        JOIN events e ON p.event_id = e.id`,
       args: [],
     });
-    for (const r of allRows<{ slug: string; display_name: string }>(partRes.rows)) {
-      const list = namesBySlug.get(r.slug) ?? [];
-      list.push(r.display_name);
-      namesBySlug.set(r.slug, list);
+    for (const r of allRows<{ slug: string; id: string; display_name: string }>(partRes.rows)) {
+      const list = membersBySlug.get(r.slug) ?? [];
+      list.push({ id: r.id, display_name: r.display_name });
+      membersBySlug.set(r.slug, list);
     }
-    for (const [, names] of namesBySlug) {
-      names.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    for (const [, members] of membersBySlug) {
+      members.sort((a, b) =>
+        a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
+      );
     }
   }
 
   const events: AdminEventRow[] = eventRows.map((row) => ({
     ...row,
-    participants: namesBySlug.get(row.slug) ?? [],
+    participantMembers: membersBySlug.get(row.slug) ?? [],
   }));
 
   return (

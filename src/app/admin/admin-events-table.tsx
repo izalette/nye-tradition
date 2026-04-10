@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useState } from "react";
-import { closeAndDrawAction, deleteEventAction, reopenSignUpAction } from "@/app/actions";
+import {
+  closeAndDrawAction,
+  deleteEventAction,
+  deleteParticipantAction,
+  reopenSignUpAction,
+} from "@/app/actions";
 
 export type AdminEventRow = {
   slug: string;
@@ -10,8 +15,8 @@ export type AdminEventRow = {
   draw_closed: number;
   pop_quiz_enabled: number;
   participant_count: number;
-  /** Signed-up names, sorted A–Z */
-  participants: string[];
+  /** Signed-up people, sorted A–Z */
+  participantMembers: { id: string; display_name: string }[];
 };
 
 type ActionKey = "" | "run" | "facts" | "reopen" | "delete";
@@ -28,6 +33,7 @@ export function AdminEventsTable({
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [joinedOpen, setJoinedOpen] = useState<Record<string, boolean>>({});
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
 
   const joinUrl = useCallback(
     (slug: string) => `${baseUrl}/e/${slug}/join`,
@@ -140,6 +146,31 @@ export function AdminEventsTable({
       }
     },
     [events, pick, router],
+  );
+
+  const removeParticipant = useCallback(
+    async (slug: string, participantId: string, displayName: string) => {
+      if (
+        !window.confirm(
+          `Remove “${displayName}” from this event? Their private link will stop working. If the draw already ran, consider reopening sign-up so assignments stay consistent.`,
+        )
+      ) {
+        return;
+      }
+      const key = `${slug}:${participantId}`;
+      setRemovingKey(key);
+      const fd = new FormData();
+      fd.set("slug", slug);
+      fd.set("participant_id", participantId);
+      const res = await deleteParticipantAction(null, fd);
+      setRemovingKey(null);
+      if (!res.ok) {
+        window.alert(res.error);
+        return;
+      }
+      router.refresh();
+    },
+    [router],
   );
 
   if (events.length === 0) {
@@ -284,10 +315,28 @@ export function AdminEventsTable({
                 <tr className="admin-event-participants-row">
                   <td colSpan={4} id={`joined-list-${ev.slug}`} role="region" aria-labelledby={`joined-toggle-${ev.slug}`}>
                     <span className="admin-event-participants-label">Joined:</span>{" "}
-                    {ev.participants.length === 0 ? (
+                    {ev.participantMembers.length === 0 ? (
                       <span className="muted">No one yet.</span>
                     ) : (
-                      <span className="admin-event-participants-names">{ev.participants.join(", ")}</span>
+                      <ul className="admin-participant-list">
+                        {ev.participantMembers.map((p) => {
+                          const rk = `${ev.slug}:${p.id}`;
+                          const busy = removingKey === rk;
+                          return (
+                            <li key={p.id} className="admin-participant-list-item">
+                              <span className="admin-event-participants-names">{p.display_name}</span>
+                              <button
+                                type="button"
+                                className="admin-participant-remove"
+                                disabled={busy}
+                                onClick={() => void removeParticipant(ev.slug, p.id, p.display_name)}
+                              >
+                                {busy ? "…" : "Remove"}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
                   </td>
                 </tr>
