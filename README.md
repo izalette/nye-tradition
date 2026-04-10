@@ -27,3 +27,4 @@ Optional: copy `.env.example` to `.env.local` if you use Turso or Resend (see co
 ## What it does
 
 Secret friend, secret enemy, and NYE cooking partner draws for a group — join via a link, organiser runs the draw, each person keeps a private link to their assignments.
+# nye-tradition
