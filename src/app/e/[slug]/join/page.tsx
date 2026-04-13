@@ -42,7 +42,7 @@ export default async function JoinPage({ params }: Props) {
   return (
     <div className="join-page">
       <header className="join-page-hero">
-        <h1 className="home-title">Welcome to the NYE Group</h1>
+        <h1 className="home-title">You&apos;ve been invited</h1>
         <p className="muted join-page-event-name">
           {ev.title} edition
         </p>
