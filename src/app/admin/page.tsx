@@ -31,17 +31,29 @@ export default async function AdminPage() {
     participant_count: Number(row.participant_count),
   }));
 
-  const membersBySlug = new Map<string, { id: string; display_name: string }[]>();
+  const membersBySlug = new Map<
+    string,
+    { id: string; display_name: string; nye_dinner: number }[]
+  >();
   if (eventRows.length > 0) {
     const partRes = await db.execute({
-      sql: `SELECT e.slug AS slug, p.id AS id, p.display_name AS display_name
+      sql: `SELECT e.slug AS slug, p.id AS id, p.display_name AS display_name, p.nye_dinner AS nye_dinner
        FROM participants p
        JOIN events e ON p.event_id = e.id`,
       args: [],
     });
-    for (const r of allRows<{ slug: string; id: string; display_name: string }>(partRes.rows)) {
+    for (const r of allRows<{
+      slug: string;
+      id: string;
+      display_name: string;
+      nye_dinner: number;
+    }>(partRes.rows)) {
       const list = membersBySlug.get(r.slug) ?? [];
-      list.push({ id: r.id, display_name: r.display_name });
+      list.push({
+        id: r.id,
+        display_name: r.display_name,
+        nye_dinner: Number(r.nye_dinner),
+      });
       membersBySlug.set(r.slug, list);
     }
     for (const [, members] of membersBySlug) {

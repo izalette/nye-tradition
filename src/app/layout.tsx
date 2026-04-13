@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Snowfall } from "@/components/snowfall";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <Snowfall />
         <main>{children}</main>
       </body>
     </html>

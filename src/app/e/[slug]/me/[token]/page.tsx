@@ -228,9 +228,9 @@ export default async function MePage({ params }: Props) {
                   You don&apos;t have a NYE cooking assignment.
                 </p>
                 <p className="muted" style={{ margin: 0 }}>
-                  You opted out of food planning for <strong>12/31</strong> when you signed up, so you
-                  weren&apos;t put in a dinner pair. If that was a mistake, ask the organiser when sign-up
-                  is open (or if they can reopen it).
+                  The host marked you as not in the NYE dinner pairing pool, so you don&apos;t have a
+                  cooking assignment. If that should change, ask the organiser (they can adjust it while
+                  sign-up is open).
                 </p>
               </div>
             ) : row.cooking_name ? (

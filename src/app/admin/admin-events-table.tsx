@@ -7,6 +7,7 @@ import {
   deleteEventAction,
   deleteParticipantAction,
   reopenSignUpAction,
+  setParticipantNyeDinnerAction,
 } from "@/app/actions";
 
 export type AdminEventRow = {
@@ -16,7 +17,7 @@ export type AdminEventRow = {
   pop_quiz_enabled: number;
   participant_count: number;
   /** Signed-up people, sorted A–Z */
-  participantMembers: { id: string; display_name: string }[];
+  participantMembers: { id: string; display_name: string; nye_dinner: number }[];
 };
 
 type ActionKey = "" | "run" | "facts" | "reopen" | "delete";
@@ -34,6 +35,7 @@ export function AdminEventsTable({
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [joinedOpen, setJoinedOpen] = useState<Record<string, boolean>>({});
   const [removingKey, setRemovingKey] = useState<string | null>(null);
+  const [nyeBusyKey, setNyeBusyKey] = useState<string | null>(null);
 
   const joinUrl = useCallback(
     (slug: string) => `${baseUrl}/e/${slug}/join`,
@@ -164,6 +166,25 @@ export function AdminEventsTable({
       fd.set("participant_id", participantId);
       const res = await deleteParticipantAction(null, fd);
       setRemovingKey(null);
+      if (!res.ok) {
+        window.alert(res.error);
+        return;
+      }
+      router.refresh();
+    },
+    [router],
+  );
+
+  const setNyeDinner = useCallback(
+    async (slug: string, participantId: string, nyeDinner: 0 | 1) => {
+      const key = `${slug}:${participantId}`;
+      setNyeBusyKey(key);
+      const fd = new FormData();
+      fd.set("slug", slug);
+      fd.set("participant_id", participantId);
+      fd.set("nye_dinner", String(nyeDinner));
+      const res = await setParticipantNyeDinnerAction(null, fd);
+      setNyeBusyKey(null);
       if (!res.ok) {
         window.alert(res.error);
         return;
@@ -322,17 +343,43 @@ export function AdminEventsTable({
                         {ev.participantMembers.map((p) => {
                           const rk = `${ev.slug}:${p.id}`;
                           const busy = removingKey === rk;
+                          const nyeBusy = nyeBusyKey === rk;
+                          const inDinnerPool = p.nye_dinner !== 0;
+                          const canEditNye = ev.draw_closed === 0;
                           return (
                             <li key={p.id} className="admin-participant-list-item">
                               <span className="admin-event-participants-names">{p.display_name}</span>
-                              <button
-                                type="button"
-                                className="admin-participant-remove"
-                                disabled={busy}
-                                onClick={() => void removeParticipant(ev.slug, p.id, p.display_name)}
-                              >
-                                {busy ? "…" : "Remove"}
-                              </button>
+                              <div className="admin-participant-actions">
+                                {canEditNye ? (
+                                  <label className="admin-participant-nye-label">
+                                    <input
+                                      type="checkbox"
+                                      checked={inDinnerPool}
+                                      disabled={nyeBusy || busy}
+                                      onChange={(e) =>
+                                        void setNyeDinner(
+                                          ev.slug,
+                                          p.id,
+                                          e.target.checked ? 1 : 0,
+                                        )
+                                      }
+                                    />
+                                    <span>NYE dinner pairing</span>
+                                  </label>
+                                ) : (
+                                  <span className="muted admin-participant-nye-readonly">
+                                    Dinner: {inDinnerPool ? "included" : "skipped"}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  className="admin-participant-remove"
+                                  disabled={busy}
+                                  onClick={() => void removeParticipant(ev.slug, p.id, p.display_name)}
+                                >
+                                  {busy ? "…" : "Remove"}
+                                </button>
+                              </div>
                             </li>
                           );
                         })}

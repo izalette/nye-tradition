@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { firstRow } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
 import { JoinForm } from "./join-form";
+import { JoinSignupGamesIntro } from "./join-signup-games-intro";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -39,21 +40,25 @@ export default async function JoinPage({ params }: Props) {
   const baseUrl = getPublicBaseUrl();
 
   return (
-    <>
-      <h1>{ev.title}</h1>
+    <div className="join-page">
+      <header className="join-page-hero">
+        <h1 className="home-title">Welcome to the NYE Group</h1>
+        <p className="muted join-page-event-name">
+          {ev.title} edition
+        </p>
+      </header>
+
       {ev.draw_closed ? (
         <p className="muted">Sign-up closed — open your saved private link for assignments.</p>
       ) : (
         <>
-          <p className="muted" style={{ marginBottom: "1rem", lineHeight: 1.5 }}>
-            One sign-up per person. You&apos;ll get a private link — save it.
-          </p>
+          <JoinSignupGamesIntro />
           <JoinForm slug={slug} baseUrl={baseUrl} popQuizEnabled={ev.pop_quiz_enabled !== 0} />
         </>
       )}
       <p style={{ marginTop: "1.5rem" }}>
         <Link href="/">Home</Link>
       </p>
-    </>
+    </div>
   );
 }

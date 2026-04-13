@@ -102,8 +102,8 @@ export async function joinEventAction(
   const fun_fact_raw = String(formData.get("fun_fact") ?? "").trim();
   const off_limits_raw = String(formData.get("off_limits_note") ?? "").trim();
   const off_limits_note = off_limits_raw || null;
-  const excludeNyeFood = formData.get("exclude_nye_food") === "1";
-  const nye_dinner: 0 | 1 = excludeNyeFood ? 0 : 1;
+  /** Dinner pool is set by the host in admin; new sign-ups default to included. */
+  const nye_dinner: 0 | 1 = 1;
   const food_allergies_raw = String(formData.get("food_allergies") ?? "").trim();
   const food_allergies = food_allergies_raw || null;
 
@@ -425,6 +425,67 @@ export async function deleteParticipantAction(
   }
   revalidatePath(`/e/${slug}/me/${victim.secret_token}`);
   revalidatePath(`/admin/events/${slug}/fun-facts`);
+
+  return { ok: true };
+}
+
+export type SetParticipantNyeDinnerState = { ok: true } | { ok: false; error: string };
+
+/** Host sets whether someone is in the NYE dinner / food-pairing pool (sign-up must be open). */
+export async function setParticipantNyeDinnerAction(
+  _prev: SetParticipantNyeDinnerState | null,
+  formData: FormData,
+): Promise<SetParticipantNyeDinnerState> {
+  const slug = String(formData.get("slug") ?? "").trim();
+  const participantId = String(formData.get("participant_id") ?? "").trim();
+  const raw = String(formData.get("nye_dinner") ?? "").trim();
+  if (!slug || !participantId) {
+    return { ok: false, error: "Missing event or participant." };
+  }
+  const nye_dinner: 0 | 1 = raw === "1" ? 1 : 0;
+
+  const db = await getDb();
+  const evRes = await db.execute({
+    sql: `SELECT id, draw_closed FROM events WHERE slug = ?`,
+    args: [slug],
+  });
+  const ev = firstRow<{ id: string; draw_closed: number }>(evRes.rows);
+  if (!ev) {
+    return { ok: false, error: "Event not found." };
+  }
+  if (ev.draw_closed) {
+    return {
+      ok: false,
+      error: "Sign-up is closed. Reopen sign-up from admin if you need to change dinner pairing.",
+    };
+  }
+
+  const exists = await db.execute({
+    sql: `SELECT 1 FROM participants WHERE id = ? AND event_id = ?`,
+    args: [participantId, ev.id],
+  });
+  if (exists.rows.length === 0) {
+    return { ok: false, error: "Participant not found for this event." };
+  }
+
+  try {
+    await db.execute({
+      sql: `UPDATE participants SET nye_dinner = ? WHERE id = ? AND event_id = ?`,
+      args: [nye_dinner, participantId, ev.id],
+    });
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/e/${slug}/join`);
+  const tokensRes = await db.execute({
+    sql: `SELECT secret_token FROM participants WHERE event_id = ?`,
+    args: [ev.id],
+  });
+  for (const row of allRows<{ secret_token: string }>(tokensRes.rows)) {
+    revalidatePath(`/e/${slug}/me/${row.secret_token}`);
+  }
 
   return { ok: true };
 }
