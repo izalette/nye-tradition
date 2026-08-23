@@ -1,6 +1,6 @@
 "use client";
 
-const FLAKE_COUNT = 52;
+const FLAKE_COUNT = 30;
 
 type Flake = {
   id: number;

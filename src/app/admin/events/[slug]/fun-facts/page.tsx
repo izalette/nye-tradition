@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFunFactsForEventAction } from "@/app/actions";
 import { PopQuizCard } from "@/app/admin/admin-pop-quiz";
 import { getDb } from "@/lib/db";
 import { firstRow } from "@/lib/libsql-rows";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 type Props = { params: Promise<{ slug: string }> };
 

@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { allRows } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
 import { AdminCreateEventModal } from "./admin-create-event-modal";
 import { AdminEventsTable, type AdminEventRow } from "./admin-events-table";
+import { logoutAction } from "@/app/actions";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /** Avoid DB at build time (Vercel has no local SQLite; Turso may be unset during build). */
 export const dynamic = "force-dynamic";
@@ -84,8 +90,19 @@ export default async function AdminPage() {
         <AdminEventsTable baseUrl={baseUrl} events={events} />
       </section>
 
-      <div style={{ marginTop: "2rem" }}>
+      <div style={{ marginTop: "2rem", display: "flex", alignItems: "center", gap: "1.25rem" }}>
         <Link href="/">Home</Link>
+        {process.env.ADMIN_SECRET ? (
+          <form action={logoutAction} style={{ display: "inline" }}>
+            <button type="submit" className="btn-secondary" style={{ marginTop: 0, fontSize: "0.9rem", padding: "0.35rem 0.75rem" }}>
+              Sign out
+            </button>
+          </form>
+        ) : (
+          <span className="muted" style={{ fontSize: "0.85rem" }}>
+            ⚠ Admin is unprotected — set <code>ADMIN_SECRET</code> in your environment variables.
+          </span>
+        )}
       </div>
     </>
   );

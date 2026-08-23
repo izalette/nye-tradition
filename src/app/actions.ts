@@ -2,11 +2,50 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { getDb } from "@/lib/db";
 import { runDraw } from "@/lib/draw";
 import { sendDrawReadyEmail, sendJoinConfirmationEmail } from "@/lib/email";
 import { allRows, firstRow } from "@/lib/libsql-rows";
+
+// ── Admin auth ────────────────────────────────────────────────────────────────
+
+export type LoginState = { error: string } | null;
+
+export async function loginAction(
+  _prev: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
+  const password = String(formData.get("password") ?? "");
+  const secret = process.env.ADMIN_SECRET?.trim();
+
+  if (!secret) {
+    return { error: "Admin access is not configured. Set ADMIN_SECRET in your environment variables." };
+  }
+  if (password !== secret) {
+    return { error: "Wrong password." };
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set("nye_admin_session", secret, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+
+  redirect("/admin");
+}
+
+export async function logoutAction(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set("nye_admin_session", "", { path: "/", maxAge: 0 });
+  redirect("/admin/login");
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function slugify(input: string): string {
   const s = input
@@ -34,6 +73,9 @@ export async function createEventAction(
 
   if (!title) {
     return { ok: false, error: "Title is required." };
+  }
+  if (title.length > 80) {
+    return { ok: false, error: "Title must be 80 characters or fewer." };
   }
 
   const pop_quiz_enabled = formData.get("pop_quiz_enabled") === "1" ? 1 : 0;
@@ -110,8 +152,20 @@ export async function joinEventAction(
   if (!display_name) {
     return { ok: false, error: "Name is required." };
   }
+  if (display_name.length > 80) {
+    return { ok: false, error: "Name must be 80 characters or fewer." };
+  }
   if (popQuiz && !fun_fact_raw) {
     return { ok: false, error: "Add a fun fact for the pop quiz." };
+  }
+  if (fun_fact_raw.length > 400) {
+    return { ok: false, error: "Fun fact must be 400 characters or fewer." };
+  }
+  if (off_limits_raw.length > 400) {
+    return { ok: false, error: "Off limits note must be 400 characters or fewer." };
+  }
+  if (food_allergies_raw.length > 400) {
+    return { ok: false, error: "Allergies/dietary note must be 400 characters or fewer." };
   }
 
   const fun_fact: string | null = popQuiz ? fun_fact_raw : null;
@@ -320,12 +374,6 @@ export async function reopenSignUpAction(
     return { ok: false, error: "Sign-up is already open for this event." };
   }
 
-  const tokensRes = await db.execute({
-    sql: `SELECT secret_token FROM participants WHERE event_id = ?`,
-    args: [ev.id],
-  });
-  const tokens = allRows<{ secret_token: string }>(tokensRes.rows);
-
   try {
     await db.batch(
       [
@@ -345,10 +393,7 @@ export async function reopenSignUpAction(
   }
 
   revalidatePath("/admin");
-  revalidatePath(`/e/${slug}/join`);
-  for (const t of tokens) {
-    revalidatePath(`/e/${slug}/me/${t.secret_token}`);
-  }
+  revalidatePath(`/e/${slug}`, "layout");
 
   return { ok: true };
 }
@@ -414,16 +459,7 @@ export async function deleteParticipantAction(
   }
 
   revalidatePath("/admin");
-  revalidatePath(`/e/${slug}/join`);
-
-  const othersRes = await db.execute({
-    sql: `SELECT secret_token FROM participants WHERE event_id = ?`,
-    args: [ev.id],
-  });
-  for (const row of allRows<{ secret_token: string }>(othersRes.rows)) {
-    revalidatePath(`/e/${slug}/me/${row.secret_token}`);
-  }
-  revalidatePath(`/e/${slug}/me/${victim.secret_token}`);
+  revalidatePath(`/e/${slug}`, "layout");
   revalidatePath(`/admin/events/${slug}/fun-facts`);
 
   return { ok: true };
@@ -623,6 +659,12 @@ export async function submitPopQuizVotesBatchAction(
     return { ok: false, error: "No facts to vote on." };
   }
 
+  const allParticipantsRes = await db.execute({
+    sql: `SELECT id FROM participants WHERE event_id = ?`,
+    args: [me.event_id],
+  });
+  const validIds = new Set(allRows<{ id: string }>(allParticipantsRes.rows).map((r) => r.id));
+
   type Pair = { authorId: string; guessedId: string };
   const pairs: Pair[] = [];
   for (const authorId of authorIds) {
@@ -633,15 +675,9 @@ export async function submitPopQuizVotesBatchAction(
     if (me.pid === guessedId) {
       return { ok: false, error: "Guess someone other than yourself for each fact." };
     }
-
-    const guessOk = await db.execute({
-      sql: `SELECT 1 FROM participants WHERE id = ? AND event_id = ?`,
-      args: [guessedId, me.event_id],
-    });
-    if (guessOk.rows.length === 0) {
+    if (!validIds.has(guessedId)) {
       return { ok: false, error: "Invalid choice." };
     }
-
     pairs.push({ authorId, guessedId });
   }
 

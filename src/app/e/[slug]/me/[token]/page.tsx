@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { allRows, firstRow } from "@/lib/libsql-rows";
 import { PopQuizVotePanel } from "./pop-quiz-vote-panel";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 type Props = { params: Promise<{ slug: string; token: string }> };
 
