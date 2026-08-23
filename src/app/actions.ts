@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db";
 import { runDraw } from "@/lib/draw";
 import { sendDrawReadyEmail, sendJoinConfirmationEmail, sendResendLinkEmail, isEmailConfigured } from "@/lib/email";
 import { allRows, firstRow } from "@/lib/libsql-rows";
+import { getPublicBaseUrl } from "@/lib/base-url";
 
 // ── Admin auth ────────────────────────────────────────────────────────────────
 
