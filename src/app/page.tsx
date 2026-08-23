@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function HomePage() {
   return (
     <div className="home-page">
@@ -34,12 +32,9 @@ export default function HomePage() {
       </div>
 
       <p style={{ marginTop: "1.25rem" }} className="muted">
-        Running the event? Head to admin, create this year&apos;s game, then paste the join link in
-        the chat.
+        Running the event? Create this year&apos;s game in the organiser panel, then paste the join
+        link in the chat.
       </p>
-      <Link className="btn" href="/admin">
-        Admin
-      </Link>
     </div>
   );
 }

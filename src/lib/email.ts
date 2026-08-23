@@ -71,6 +71,29 @@ export async function sendJoinConfirmationEmail(options: {
   });
 }
 
+export async function sendResendLinkEmail(options: {
+  to: string;
+  eventTitle: string;
+  slug: string;
+  secretToken: string;
+}): Promise<SendResult> {
+  if (!isEmailConfigured()) return { ok: false, reason: "not_configured" };
+
+  const base = getPublicBaseUrl();
+  const link = `${base}/e/${options.slug}/me/${options.secretToken}`;
+  const title = escapeHtml(options.eventTitle);
+
+  return sendViaResend({
+    to: options.to,
+    subject: `Your link for: ${options.eventTitle}`,
+    html: `
+      <p>Here's your private page for <strong>${title}</strong>:</p>
+      <p><a href="${link}">${escapeHtml(link)}</a></p>
+      <p>Don't share — yours only.</p>
+    `,
+  });
+}
+
 export async function sendDrawReadyEmail(options: {
   to: string;
   eventTitle: string;

@@ -6,6 +6,7 @@ import { firstRow } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
 import { JoinForm } from "./join-form";
 import { JoinSignupGamesIntro } from "./join-signup-games-intro";
+import { ResendLinkForm } from "./resend-link-form";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -49,7 +50,10 @@ export default async function JoinPage({ params }: Props) {
       </header>
 
       {ev.draw_closed ? (
-        <p className="muted">Sign-up closed — open your saved private link for assignments.</p>
+        <>
+          <p className="muted">Sign-up closed — open your saved private link for assignments.</p>
+          <ResendLinkForm slug={slug} />
+        </>
       ) : (
         <>
           <JoinSignupGamesIntro />

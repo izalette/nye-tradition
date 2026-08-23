@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { getDb } from "@/lib/db";
 import { runDraw } from "@/lib/draw";
-import { sendDrawReadyEmail, sendJoinConfirmationEmail } from "@/lib/email";
+import { sendDrawReadyEmail, sendJoinConfirmationEmail, sendResendLinkEmail, isEmailConfigured } from "@/lib/email";
 import { allRows, firstRow } from "@/lib/libsql-rows";
 
 // ── Admin auth ────────────────────────────────────────────────────────────────
@@ -43,6 +43,57 @@ export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set("nye_admin_session", "", { path: "/", maxAge: 0 });
   redirect("/admin/login");
+}
+
+// ── Resend private link ───────────────────────────────────────────────────────
+
+export type ResendLinkState =
+  | { ok: false; error: string }
+  | { ok: true; sent: boolean; link?: string }
+  | null;
+
+export async function resendLinkAction(
+  _prev: ResendLinkState,
+  formData: FormData,
+): Promise<ResendLinkState> {
+  const slug = String(formData.get("slug") ?? "").trim();
+  const query = String(formData.get("query") ?? "").trim();
+
+  if (!query) return { ok: false, error: "Enter your name or email." };
+  if (query.length > 200) return { ok: false, error: "Too long." };
+
+  const db = await getDb();
+
+  const evRes = await db.execute({
+    sql: `SELECT id, title FROM events WHERE slug = ?`,
+    args: [slug],
+  });
+  const ev = firstRow<{ id: string; title: string }>(evRes.rows);
+  if (!ev) return { ok: false, error: "Event not found." };
+
+  const q = query.toLowerCase();
+  const pRes = await db.execute({
+    sql: `SELECT secret_token, email, display_name FROM participants
+          WHERE event_id = ?
+            AND (lower(trim(email)) = ? OR lower(trim(display_name)) = ?)
+          LIMIT 1`,
+    args: [ev.id, q, q],
+  });
+  const p = firstRow<{ secret_token: string; email: string | null; display_name: string }>(
+    pRes.rows,
+  );
+
+  if (!p) return { ok: false, error: "No one with that name or email found in this event." };
+
+  const base = getPublicBaseUrl();
+  const link = `${base}/e/${slug}/me/${p.secret_token}`;
+
+  if (p.email && isEmailConfigured()) {
+    await sendResendLinkEmail({ to: p.email, eventTitle: ev.title, slug, secretToken: p.secret_token });
+    return { ok: true, sent: true };
+  }
+
+  return { ok: true, sent: false, link };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
