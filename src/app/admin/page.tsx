@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getDb } from "@/lib/db";
-import { allRows } from "@/lib/libsql-rows";
+import { allRows, firstRow } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
+import { getCurrentAdminUserId } from "@/lib/admin-auth";
 import { AdminCreateEventModal } from "./admin-create-event-modal";
 import { AdminEventsTable, type AdminEventRow } from "./admin-events-table";
 import { logoutAction } from "@/app/actions";
@@ -11,19 +12,29 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Avoid DB at build time (Vercel has no local SQLite; Turso may be unset during build). */
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const baseUrl = getPublicBaseUrl();
   const db = await getDb();
+
+  const userId = await getCurrentAdminUserId();
+
+  const adminUser = userId
+    ? firstRow<{ username: string }>(
+        (await db.execute({ sql: `SELECT username FROM admin_users WHERE id = ?`, args: [userId] })).rows,
+      )
+    : null;
+
   const eventsRes = await db.execute({
     sql: `SELECT e.slug, e.title, e.draw_closed, e.pop_quiz_enabled,
       (SELECT COUNT(*) FROM participants p WHERE p.event_id = e.id) AS participant_count
      FROM events e
+     WHERE e.admin_user_id = ? OR e.admin_user_id IS NULL
      ORDER BY e.created_at DESC`,
-    args: [],
+    args: [userId ?? ""],
   });
+
   const eventRows = allRows<{
     slug: string;
     title: string;
@@ -45,8 +56,9 @@ export default async function AdminPage() {
     const partRes = await db.execute({
       sql: `SELECT e.slug AS slug, p.id AS id, p.display_name AS display_name, p.nye_dinner AS nye_dinner
        FROM participants p
-       JOIN events e ON p.event_id = e.id`,
-      args: [],
+       JOIN events e ON p.event_id = e.id
+       WHERE e.admin_user_id = ? OR e.admin_user_id IS NULL`,
+      args: [userId ?? ""],
     });
     for (const r of allRows<{
       slug: string;
@@ -55,11 +67,7 @@ export default async function AdminPage() {
       nye_dinner: number;
     }>(partRes.rows)) {
       const list = membersBySlug.get(r.slug) ?? [];
-      list.push({
-        id: r.id,
-        display_name: r.display_name,
-        nye_dinner: Number(r.nye_dinner),
-      });
+      list.push({ id: r.id, display_name: r.display_name, nye_dinner: Number(r.nye_dinner) });
       membersBySlug.set(r.slug, list);
     }
     for (const [, members] of membersBySlug) {
@@ -93,11 +101,18 @@ export default async function AdminPage() {
       <div style={{ marginTop: "2rem", display: "flex", alignItems: "center", gap: "1.25rem" }}>
         <Link href="/">Home</Link>
         {process.env.ADMIN_SECRET ? (
-          <form action={logoutAction} style={{ display: "inline" }}>
-            <button type="submit" className="btn-secondary" style={{ marginTop: 0, fontSize: "0.9rem", padding: "0.35rem 0.75rem" }}>
-              Sign out
-            </button>
-          </form>
+          <>
+            {adminUser ? (
+              <span className="muted" style={{ fontSize: "0.9rem" }}>
+                Signed in as <strong style={{ color: "var(--text)" }}>{adminUser.username}</strong>
+              </span>
+            ) : null}
+            <form action={logoutAction} style={{ display: "inline" }}>
+              <button type="submit" className="btn-secondary" style={{ marginTop: 0, fontSize: "0.9rem", padding: "0.35rem 0.75rem" }}>
+                Sign out
+              </button>
+            </form>
+          </>
         ) : (
           <span className="muted" style={{ fontSize: "0.85rem" }}>
             ⚠ Admin is unprotected — set <code>ADMIN_SECRET</code> in your environment variables.

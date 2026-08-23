@@ -189,6 +189,21 @@ async function migrate(db: Client) {
   }
 
   await db.execute(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+
+  try {
+    await db.execute(`ALTER TABLE events ADD COLUMN admin_user_id TEXT REFERENCES admin_users(id)`);
+  } catch {
+    /* column already present */
+  }
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS pop_quiz_votes (
       id TEXT PRIMARY KEY,
       event_id TEXT NOT NULL,
@@ -212,6 +227,7 @@ export type EventRow = {
   draw_closed: number;
   /** 1 = host enabled the pop-quiz add-on for this event */
   pop_quiz_enabled: number;
+  admin_user_id: string | null;
   created_at: string;
 };
 

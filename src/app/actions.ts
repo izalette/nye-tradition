@@ -9,8 +9,19 @@ import { runDraw } from "@/lib/draw";
 import { sendDrawReadyEmail, sendJoinConfirmationEmail, sendResendLinkEmail, isEmailConfigured } from "@/lib/email";
 import { allRows, firstRow } from "@/lib/libsql-rows";
 import { getPublicBaseUrl } from "@/lib/base-url";
+import { hashPassword, verifyPassword, createSessionToken, getCurrentAdminUserId } from "@/lib/admin-auth";
 
 // ── Admin auth ────────────────────────────────────────────────────────────────
+
+function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  };
+}
 
 export type LoginState = { error: string } | null;
 
@@ -18,25 +29,77 @@ export async function loginAction(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
+  const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const secret = process.env.ADMIN_SECRET?.trim();
 
   if (!secret) {
     return { error: "Admin access is not configured. Set ADMIN_SECRET in your environment variables." };
   }
-  if (password !== secret) {
-    return { error: "Wrong password." };
+  if (!username || !password) {
+    return { error: "Enter your username and password." };
+  }
+
+  const db = await getDb();
+  const res = await db.execute({
+    sql: `SELECT id, password_hash FROM admin_users WHERE lower(username) = ?`,
+    args: [username.toLowerCase()],
+  });
+  const user = firstRow<{ id: string; password_hash: string }>(res.rows);
+
+  if (!user || !verifyPassword(password, user.password_hash)) {
+    return { error: "Wrong username or password." };
   }
 
   const cookieStore = await cookies();
-  cookieStore.set("nye_admin_session", secret, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+  cookieStore.set("nye_admin_session", createSessionToken(user.id, secret), sessionCookieOptions());
+  redirect("/admin");
+}
+
+export type RegisterState = { error: string } | null;
+
+export async function registerAction(
+  _prev: RegisterState,
+  formData: FormData,
+): Promise<RegisterState> {
+  const groupCode = String(formData.get("group_code") ?? "").trim();
+  const username = String(formData.get("username") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const secret = process.env.ADMIN_SECRET?.trim();
+
+  if (!secret) {
+    return { error: "Admin access is not configured." };
+  }
+  if (groupCode !== secret) {
+    return { error: "Wrong group code." };
+  }
+  if (!username) {
+    return { error: "Username is required." };
+  }
+  if (username.length > 40) {
+    return { error: "Username must be 40 characters or fewer." };
+  }
+  if (password.length < 6) {
+    return { error: "Password must be at least 6 characters." };
+  }
+
+  const db = await getDb();
+  const existing = await db.execute({
+    sql: `SELECT 1 FROM admin_users WHERE lower(username) = ?`,
+    args: [username.toLowerCase()],
+  });
+  if (existing.rows.length > 0) {
+    return { error: "Username already taken — pick another." };
+  }
+
+  const id = uuidv4();
+  await db.execute({
+    sql: `INSERT INTO admin_users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)`,
+    args: [id, username, hashPassword(password), new Date().toISOString()],
   });
 
+  const cookieStore = await cookies();
+  cookieStore.set("nye_admin_session", createSessionToken(id, secret), sessionCookieOptions());
   redirect("/admin");
 }
 
@@ -136,11 +199,12 @@ export async function createEventAction(
   const id = uuidv4();
   const created_at = new Date().toISOString();
 
+  const adminUserId = await getCurrentAdminUserId();
   const db = await getDb();
   try {
     await db.execute({
-      sql: `INSERT INTO events (id, slug, title, draw_closed, pop_quiz_enabled, created_at) VALUES (?, ?, ?, 0, ?, ?)`,
-      args: [id, slug, title, pop_quiz_enabled, created_at],
+      sql: `INSERT INTO events (id, slug, title, draw_closed, pop_quiz_enabled, created_at, admin_user_id) VALUES (?, ?, ?, 0, ?, ?, ?)`,
+      args: [id, slug, title, pop_quiz_enabled, created_at, adminUserId],
     });
   } catch (e: unknown) {
     if (isUniqueConstraintError(e)) {
